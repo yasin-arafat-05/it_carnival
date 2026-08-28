@@ -1,0 +1,318 @@
+name: demo_fastapi_proj
+
+services:
+  # ============================================================
+  # 1. PostgreSQL Database
+  # ============================================================
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+
+    env_file:
+      - .env
+
+    environment:
+      POSTGRES_DB: ${DATABASE}
+      POSTGRES_USER: ${DB_ROLE_NAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+    networks:
+      - private
+
+
+  # ============================================================
+  # 2. Redis
+  # ============================================================
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+
+    command:
+      - redis-server
+      - --appendonly
+      - yes
+      - --maxmemory
+      - 256mb
+      - --maxmemory-policy
+      - allkeys-lru
+
+    volumes:
+      - redis_data:/data
+
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "redis-cli",
+          "ping"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+    networks:
+      - private
+
+
+  # ============================================================
+  # 3. FastAPI Server 1
+  # ============================================================
+  server1:
+    build:
+      context: .
+      dockerfile: app/Dockerfile
+
+    restart: unless-stopped
+
+    env_file:
+      - .env
+
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+
+    depends_on:
+      db:
+        condition: service_healthy
+
+      redis:
+        condition: service_healthy
+
+    networks:
+      - private
+
+    expose:
+      - "8000"
+
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "-O",
+          "/dev/null",
+          "http://localhost:8000/health"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+
+  # ============================================================
+  # 4. FastAPI Server 2
+  # ============================================================
+  server2:
+    build:
+      context: .
+      dockerfile: app/Dockerfile
+
+    restart: unless-stopped
+
+    env_file:
+      - .env
+
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+
+    depends_on:
+      db:
+        condition: service_healthy
+
+      redis:
+        condition: service_healthy
+
+    networks:
+      - private
+
+    expose:
+      - "8000"
+
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "-O",
+          "/dev/null",
+          "http://localhost:8000/health"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+
+  # ============================================================
+  # 5. Celery LLM Worker
+  # ============================================================
+  celery_worker:
+    build:
+      context: .
+      dockerfile: app/Dockerfile
+
+    restart: unless-stopped
+
+    command: celery -A app.workers.llm_worker.celery_app_llm worker --loglevel=info -Q llm_tasks
+
+    env_file:
+      - .env
+
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+
+    depends_on:
+      db:
+        condition: service_healthy
+
+      redis:
+        condition: service_healthy
+
+    networks:
+      - public
+      - private
+
+
+
+  # ============================================================
+  # 6. Nginx Reverse Proxy
+  # ============================================================
+
+  nginx:
+    image: nginx:1.27-alpine
+
+    restart: unless-stopped
+
+    ports:
+      - "8080:80"
+
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+
+    depends_on:
+      server1:
+        condition: service_healthy
+
+      server2:
+        condition: service_healthy
+
+    networks:
+      - public
+      - private
+
+
+  # ============================================================
+  # 6. Prometheus
+  # ============================================================
+  prometheus:
+    image: prom/prometheus:v3.5.0
+
+    restart: unless-stopped
+
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=15d"
+
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+
+    ports:
+      - "9090:9090"
+
+    networks:
+      - monitoring
+      - private
+
+
+  # ============================================================
+  # 7. Grafana
+  # ============================================================
+  grafana:
+    image: grafana/grafana:12.1.1
+
+    restart: unless-stopped
+
+    env_file:
+      - .env
+
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+
+    volumes:
+      - grafana_data:/var/lib/grafana
+
+    ports:
+      - "3000:3000"
+
+    depends_on:
+      - prometheus
+
+    networks:
+      - monitoring
+
+
+# ==============================================================
+# Volumes
+# ==============================================================
+volumes:
+
+  postgres_data:
+    driver: local
+
+  redis_data:
+    driver: local
+
+  prometheus_data:
+    driver: local
+
+  grafana_data:
+    driver: local
+
+
+# ==============================================================
+# Networks
+# ==============================================================
+networks:
+
+  public:
+    driver: bridge
+
+  private:
+    driver: bridge
+    internal: true
+
+  monitoring:
+    driver: bridge

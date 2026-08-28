@@ -1,0 +1,36 @@
+# FastAPI & Web Framework
+fastapi
+uvicorn[standard]
+pydantic
+pydantic-settings
+python-dotenv
+python-multipart
+email-validator
+prometheus-fastapi-instrumentator
+
+
+# Database & ORM
+alembic
+sqlalchemy
+asyncpg
+psycopg[binary]
+psycopg-pool
+
+# Security & Authentication
+pyjwt
+pwdlib[argon2]
+argon2-cffi
+python-jose[cryptography]
+
+# Cache & Background Tasks
+redis
+celery
+
+# LangChain, LangGraph & AI Ecosystem
+langgraph
+langgraph-checkpoint
+langgraph-checkpoint-postgres
+langchain
+langchain-core
+langchain-groq
+typing-extensions
