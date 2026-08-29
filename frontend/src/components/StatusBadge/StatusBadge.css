@@ -17,3 +17,18 @@
   background: var(--color-danger-soft);
   color: var(--color-danger);
 }
+
+.status-badge--completed {
+  background: var(--color-success-soft);
+  color: var(--color-success);
+}
+
+.status-badge--pending {
+  background: var(--color-border);
+  color: var(--color-text-secondary);
+}
+
+.status-badge--failed {
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+}

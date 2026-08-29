@@ -1,0 +1,119 @@
+.dashboard-page {
+  flex: 1;
+  min-height: 100svh;
+  width: 100%;
+  background: var(--color-bg);
+  padding: var(--space-5);
+  box-sizing: border-box;
+  display: flex;
+  justify-content: center;
+}
+
+.dashboard-page__container {
+  width: 100%;
+  max-width: 640px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+/* Header */
+
+.dashboard-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.dashboard-header__brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.dashboard-header__greeting {
+  font-size: var(--font-size-lg);
+  color: var(--color-text);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-header__profile-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-pill);
+  background: var(--color-primary-soft);
+  color: var(--color-primary-strong);
+  font-weight: 700;
+  font-size: var(--font-size-md);
+  flex-shrink: 0;
+  border: 1px solid var(--color-border);
+}
+
+.dashboard-header__profile-link:hover {
+  text-decoration: none;
+  background: var(--color-border);
+}
+
+/* Actions */
+
+.dashboard-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}
+
+/* Sections */
+
+.dashboard-section {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-5);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.dashboard-section__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.dashboard-section__title {
+  font-size: var(--font-size-lg);
+  color: var(--color-text);
+}
+
+.dashboard-section__link {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+.transaction-list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+}
+
+.dashboard-empty {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+@media (min-width: 640px) {
+  .dashboard-page {
+    padding: var(--space-7) var(--space-5);
+  }
+}
