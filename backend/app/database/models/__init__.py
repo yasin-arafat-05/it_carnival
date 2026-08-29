@@ -4,6 +4,7 @@ from app.database.models.transaction import Transaction
 from app.database.models.ledger import LedgerEntry
 from app.database.models.money_request import MoneyRequest
 from app.database.models.notification import Notification
+from app.database.models.chat_history import Conversation, MessageHistory
 
 __all__ = [
     "User",
@@ -12,4 +13,6 @@ __all__ = [
     "LedgerEntry",
     "MoneyRequest",
     "Notification",
+    "Conversation",
+    "MessageHistory",
 ]

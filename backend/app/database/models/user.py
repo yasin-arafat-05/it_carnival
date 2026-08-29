@@ -10,6 +10,7 @@ if TYPE_CHECKING:
     from app.database.models.account import Account
     from app.database.models.notification import Notification
     from app.database.models.money_request import MoneyRequest
+    from app.database.models.chat_history import Conversation
 
 
 class User(Base):
@@ -35,6 +36,7 @@ class User(Base):
         notifications (List[Notification]): List of in-app notifications for this user.
         sent_money_requests (List[MoneyRequest]): Money requests sent by this user to others.
         received_money_requests (List[MoneyRequest]): Money requests sent to this user by others.
+        conversations (List[Conversation]): LLM conversation history threads owned by this user.
     """
 
     __tablename__ = "users"
@@ -83,4 +85,7 @@ class User(Base):
         foreign_keys="[MoneyRequest.payer_id]",
         back_populates="payer",
         cascade="all, delete-orphan",
+    )
+    conversations: Mapped[List["Conversation"]] = relationship(
+        "Conversation", back_populates="user", cascade="all, delete-orphan"
     )

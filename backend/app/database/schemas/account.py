@@ -2,7 +2,7 @@ from uuid import UUID
 from decimal import Decimal
 from datetime import datetime
 from typing import List
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 class AccountResponse(BaseModel):
@@ -29,8 +29,7 @@ class AccountResponse(BaseModel):
     status: str = Field(..., description="Account status")
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class WalletDashboardResponse(BaseModel):
@@ -45,5 +44,4 @@ class WalletDashboardResponse(BaseModel):
     account: AccountResponse
     recent_transactions: List[dict] = Field(default_factory=list, description="Recent transaction history items")
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

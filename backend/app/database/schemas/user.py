@@ -2,7 +2,9 @@ import re
 from uuid import UUID
 from datetime import datetime
 from typing import Optional
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator, ConfigDict
+
+from app.database.schemas.account import AccountResponse
 
 
 class UserCreate(BaseModel):
@@ -13,18 +15,59 @@ class UserCreate(BaseModel):
     strict password complexity guidelines.
 
     Args/Attributes:
-        full_name (str): Full legal or display name of user (3-150 chars).
+        full_name (str): Full legal or display name of user (2-150 chars).
         username (str): Unique handle containing letters, numbers, and underscores.
         phone_number (str): Valid contact phone number.
         email (EmailStr): Valid unique email address.
         password (str): Password string (min 10 chars, uppercase, lowercase, digit, special char).
     """
 
-    full_name: str = Field(..., min_length=2, max_length=150, description="Full display name of user")
-    username: str = Field(..., min_length=3, max_length=50, pattern=r"^[a-zA-Z0-9_]+$", description="Unique username handle")
-    phone_number: str = Field(..., min_length=10, max_length=20, description="Contact phone number")
-    email: EmailStr = Field(..., description="Valid unique email address")
-    password: str = Field(..., min_length=10, max_length=128, description="Secure password requiring high complexity")
+    full_name: str = Field(
+        ...,
+        min_length=2,
+        max_length=150,
+        description="Full display name of user",
+        examples=["Yasin Arafat"],
+    )
+    username: str = Field(
+        ...,
+        min_length=3,
+        max_length=50,
+        pattern=r"^[a-zA-Z0-9_]+$",
+        description="Unique username handle",
+        examples=["yasin_arafat_05"],
+    )
+    phone_number: str = Field(
+        ...,
+        min_length=10,
+        max_length=20,
+        description="Contact phone number",
+        examples=["01700000000"],
+    )
+    email: EmailStr = Field(
+        ...,
+        description="Valid unique email address",
+        examples=["yasin@example.com"],
+    )
+    password: str = Field(
+        ...,
+        min_length=10,
+        max_length=128,
+        description="Secure password requiring high complexity",
+        examples=["SecurePassword123!"],
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "full_name": "Yasin Arafat",
+                "username": "yasin_arafat_05",
+                "phone_number": "01700000000",
+                "email": "yasin@example.com",
+                "password": "SecurePassword123!",
+            }
+        }
+    )
 
     @field_validator("password")
     @classmethod
@@ -52,15 +95,32 @@ class UserLogin(BaseModel):
         password (str): User plain text password for verification.
     """
 
-    identifier: str = Field(..., description="Email, Username, or Phone Number")
-    password: str = Field(..., description="User password string")
+    identifier: str = Field(
+        ...,
+        description="Email, Username, or Phone Number",
+        examples=["yasin_arafat_05"],
+    )
+    password: str = Field(
+        ...,
+        description="User password string",
+        examples=["SecurePassword123!"],
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "identifier": "yasin_arafat_05",
+                "password": "SecurePassword123!",
+            }
+        }
+    )
 
 
 class UserResponse(BaseModel):
     """
     User Profile Response Pydantic Schema.
 
-    Exposes public user profile details without exposing password hashes.
+    Exposes public user profile details and attached digital wallet account information.
 
     Args/Attributes:
         id (UUID): User unique ID.
@@ -70,6 +130,7 @@ class UserResponse(BaseModel):
         email (EmailStr): User email address.
         account_status (str): Current status ('ACTIVE', 'SUSPENDED', 'BLOCKED').
         created_at (datetime): UTC registration timestamp.
+        account (Optional[AccountResponse]): Digital wallet account details.
     """
 
     id: UUID
@@ -79,9 +140,9 @@ class UserResponse(BaseModel):
     email: EmailStr
     account_status: str
     created_at: datetime
+    account: Optional[AccountResponse] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UserSearchResponse(BaseModel):
@@ -104,8 +165,7 @@ class UserSearchResponse(BaseModel):
     phone_number: str
     email: EmailStr
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class TokenResponse(BaseModel):
@@ -122,5 +182,4 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
     user: UserResponse
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

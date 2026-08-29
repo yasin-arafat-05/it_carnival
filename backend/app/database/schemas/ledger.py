@@ -1,7 +1,7 @@
 from uuid import UUID
 from decimal import Decimal
 from datetime import datetime
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 class LedgerEntryResponse(BaseModel):
@@ -26,5 +26,4 @@ class LedgerEntryResponse(BaseModel):
     balance_after: Decimal = Field(..., decimal_places=2, description="Balance snapshot after transaction")
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

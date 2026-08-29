@@ -1,7 +1,7 @@
 from uuid import UUID
 from datetime import datetime
 from typing import Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 class NotificationResponse(BaseModel):
@@ -28,5 +28,4 @@ class NotificationResponse(BaseModel):
     reference_id: Optional[str] = Field(None, description="Linked transaction or request ID")
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

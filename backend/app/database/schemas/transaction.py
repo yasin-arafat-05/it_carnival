@@ -2,7 +2,7 @@ from uuid import UUID
 from decimal import Decimal
 from datetime import datetime
 from typing import Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 class SendMoneyRequest(BaseModel):
@@ -16,10 +16,41 @@ class SendMoneyRequest(BaseModel):
         idempotency_key (Optional[str]): Unique idempotency key to prevent double transfers.
     """
 
-    receiver_identifier: str = Field(..., description="Receiver username, email, or phone number")
-    amount: Decimal = Field(..., gt=0, decimal_places=2, description="Transfer amount in BDT")
-    note: Optional[str] = Field(None, max_length=250, description="Optional payment note")
-    idempotency_key: Optional[str] = Field(None, max_length=100, description="Unique key for duplicate prevention")
+    receiver_identifier: str = Field(
+        ...,
+        description="Receiver username, email, or phone number",
+        examples=["bob_rahman"],
+    )
+    amount: Decimal = Field(
+        ...,
+        gt=0,
+        decimal_places=2,
+        description="Transfer amount in BDT",
+        examples=[2500.00],
+    )
+    note: Optional[str] = Field(
+        None,
+        max_length=250,
+        description="Optional payment note",
+        examples=["Lunch payment"],
+    )
+    idempotency_key: Optional[str] = Field(
+        None,
+        max_length=100,
+        description="Unique key for duplicate prevention",
+        examples=["ABC123KEY987"],
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "receiver_identifier": "bob_rahman",
+                "amount": 2500.00,
+                "note": "Lunch payment",
+                "idempotency_key": "ABC123KEY987",
+            }
+        }
+    )
 
 
 class TransactionResponse(BaseModel):
@@ -56,5 +87,4 @@ class TransactionResponse(BaseModel):
     note: Optional[str] = None
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
