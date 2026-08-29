@@ -446,3 +446,74 @@ Lists in-app notifications for the user.
 
 ### Conversation Messages History (`GET /chatHistory/{conversation_id}`)
 - **Endpoint**: `GET /chatHistory/1`
+
+---
+
+## 9. Admin Dashboard & False Transaction Reversals
+
+### Request False Transaction Reversal (`POST /wallet/disputes/false-transaction`)
+Sender requests mutual reversal for an accidental money transfer.
+- **Endpoint**: `POST /wallet/disputes/false-transaction`
+- **Input Schema (`FalseTransactionRequest`)**:
+  ```json
+  {
+    "transaction_reference": "TX-20260829-6A9824",
+    "reason": "Accidentally sent money to wrong handle"
+  }
+  ```
+- **Output Schema (`DisputeResponse`)** (Status: `PENDING_RECEIVER_CONFIRMATION`)
+
+---
+
+### Receiver Confirm / Deny Reversal (`POST /wallet/disputes/{dispute_id}/receiver-confirm`)
+Receiver confirms or denies false transaction claim.
+- **Endpoint**: `POST /wallet/disputes/11111111-2222-3333-4444-555555555555/receiver-confirm`
+- **Input Schema (`DisputeReceiverAction`)**:
+  ```json
+  {
+    "action": "CONFIRM",
+    "notes": "I confirm receiving this transfer by mistake"
+  }
+  ```
+- **Output Schema (`DisputeResponse`)** (Status: `CONFIRMED_BY_RECEIVER`)
+
+---
+
+### Admin Execute Reversal / Refund (`POST /admin/disputes/{dispute_id}/execute-reversal`)
+Admin executes atomic money refund for confirmed false transaction.
+- **Endpoint**: `POST /admin/disputes/11111111-2222-3333-4444-555555555555/execute-reversal`
+- **Output Schema (`DisputeResponse`)** (Status: `RESOLVED_REVERSED`)
+
+---
+
+### File Formal Complaint (`POST /wallet/disputes/file-complaint`)
+Files a formal complaint initiating long investigation process.
+- **Endpoint**: `POST /wallet/disputes/file-complaint`
+- **Input Schema (`ComplaintRequest`)**:
+  ```json
+  {
+    "transaction_reference": "TX-20260829-6A9824",
+    "reason": "Receiver refuses to return accidental transfer"
+  }
+  ```
+- **Output Schema (`DisputeResponse`)** (Status: `UNDER_INVESTIGATION`)
+
+---
+
+### Admin Resolve Complaint (`POST /admin/disputes/{dispute_id}/resolve`)
+Admin investigation decision endpoint.
+- **Endpoint**: `POST /admin/disputes/11111111-2222-3333-4444-555555555555/resolve`
+- **Input Schema (`DisputeResolveAction`)**:
+  ```json
+  {
+    "decision": "APPROVE_REVERSAL",
+    "admin_notes": "Approved after reviewing transaction and ledger evidence"
+  }
+  ```
+
+---
+
+### Admin System Transaction Search (`GET /admin/transactions`)
+Admin inspection endpoint returning all transactions across all users with reference and username search.
+- **Endpoint**: `GET /admin/transactions?page=1&limit=20&search=bindu_05`
+- **Output Schema (`List[TransactionResponse]`)**

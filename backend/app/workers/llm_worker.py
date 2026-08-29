@@ -14,6 +14,7 @@ from langchain_core.messages import AIMessage
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
 from app.core.config import CONFIG
+from app.database.models.user import User
 from app.database.models.chat_history import Conversation, MessageHistory
 from app.database.session import connection_args
 from app.redis.redis_setup import redis_sync, redis_async
@@ -108,6 +109,16 @@ async def process_llm_request_internal(
         user_uuid = UUID(str(user_id)) if not isinstance(user_id, UUID) else user_id
 
         async with session_factory() as db:
+            # Verify user exists in database to prevent FK violation
+            user_exists = (await db.execute(select(User.id).where(User.id == user_uuid))).scalar_one_or_none()
+            if not user_exists:
+                logger.warning("User ID %s not found in users table.", user_uuid)
+                redis_sync.publish(channel_id, json.dumps({
+                    "type": "error",
+                    "content": "User account not found in database. Please log out and log in again."
+                }))
+                return
+
             is_new_conversation = (not checkpoint_id or str(checkpoint_id).strip() == "")
 
             # Filter out Swagger UI default dummy objects like {"additionalProp1": {}}

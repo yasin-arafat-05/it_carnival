@@ -65,13 +65,14 @@ async def create_user(user_data: UserCreate) -> UserResponse:
             # Hash the user's password securely with Argon2id
             hashed_pwd = get_password_hash(user_data.password)
 
-            # 1. Create User instance
+            # 1. Create User instance (Default role='USER')
             new_user = User(
                 full_name=user_data.full_name,
                 username=user_data.username,
                 phone_number=user_data.phone_number,
                 email=user_data.email,
                 password_hash=hashed_pwd,
+                role="USER",
                 account_status="ACTIVE",
             )
             db.add(new_user)

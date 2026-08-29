@@ -94,18 +94,30 @@ async def create_money_request(
     Returns:
         MoneyRequestResponse: Created request object.
     """
+    if requester_user.role == "ADMIN":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin users are restricted from sending money requests.",
+        )
+
     lock_key = f"create_req_{requester_user.id}"
     thread_lock = LOCK_MANAGER.get_lock(lock_key)
 
     with thread_lock:
         # Resolve target Payer User
-        payer_query = select(User).where(
-            or_(
-                User.username == request_data.payer_identifier,
-                User.email == request_data.payer_identifier,
-                User.phone_number == request_data.payer_identifier,
-            )
-        )
+        payer_identifier = request_data.payer_identifier.strip()
+        payer_conditions = [
+            User.username == payer_identifier,
+            User.email == payer_identifier,
+            User.phone_number == payer_identifier,
+        ]
+        try:
+            payer_uuid = uuid.UUID(payer_identifier)
+            payer_conditions.append(User.id == payer_uuid)
+        except ValueError:
+            pass
+
+        payer_query = select(User).where(or_(*payer_conditions))
         payer_res = await db.execute(payer_query)
         payer_user = payer_res.scalar_one_or_none()
 
@@ -244,6 +256,12 @@ async def action_money_request(
     Raises:
         HTTPException: 404 Not Found or 400 Bad Request if invalid or expired.
     """
+    if payer_user.role == "ADMIN":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin users are restricted from accepting or paying money requests.",
+        )
+
     lock_key = f"action_req_{request_id}"
     thread_lock = LOCK_MANAGER.get_lock(lock_key)
 

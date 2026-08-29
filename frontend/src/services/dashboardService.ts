@@ -1,32 +1,52 @@
-import { MOCK_DASHBOARD_DATA } from '../data/mockDashboard';
+import { apiFetch } from '../config/api';
 import type { DashboardData } from '../types/dashboard';
 
 /**
- * Mock dashboard data service.
- *
- * This is the ONLY module the Dashboard page talks to for account data.
- * It simulates network latency (and an occasional failure, so the
- * error/retry UI is actually reachable during the demo) and resolves the
- * shared mock dashboard data. Later, `getDashboardData()` can be
- * reimplemented to call the real backend (e.g. GET /dashboard) with an
- * identical return shape — no page/component changes required.
+ * Dashboard Service calling GET /users/me and GET /wallet/dashboard
  */
+export const dashboardService = {
+  async getDashboardData(): Promise<DashboardData> {
+    const userMe = await apiFetch<any>('/users/me');
+    const dashboard = await apiFetch<any>('/wallet/dashboard');
 
-const MOCK_DASHBOARD_DELAY_MS = 900;
+    const currentUser = {
+      id: userMe.id,
+      name: userMe.full_name,
+      username: userMe.username,
+      email: userMe.email,
+      phone: userMe.phone_number,
+      role: userMe.role || 'USER',
+      accountStatus: (userMe.account_status || 'ACTIVE').toLowerCase() as any,
+      createdAt: userMe.created_at,
+    };
 
-/** Simulated chance of a failed load, so "Couldn't load balance" + Retry is demoable. */
-const MOCK_FAILURE_RATE = 0.15;
+    const myAccountId = dashboard.account?.id;
+    const rawTxs = dashboard.recent_transactions || [];
 
-export const mockDashboardService = {
-  getDashboardData(): Promise<DashboardData> {
-    return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        if (Math.random() < MOCK_FAILURE_RATE) {
-          reject(new Error("Couldn't load balance"));
-          return;
-        }
-        resolve(MOCK_DASHBOARD_DATA);
-      }, MOCK_DASHBOARD_DELAY_MS);
+    const transactions = rawTxs.map((tx: any) => {
+      const isSent = tx.sender_account_id === myAccountId;
+      const counterpartyName = isSent
+        ? (tx.receiver_username || 'Recipient')
+        : (tx.sender_username || 'Initial Credit / System');
+
+      return {
+        id: tx.id,
+        counterpartyName,
+        direction: isSent ? ('sent' as const) : ('received' as const),
+        amount: Number(tx.amount),
+        currency: tx.currency || 'BDT',
+        occurredAt: tx.created_at,
+        status: (tx.status || 'completed').toLowerCase() as any,
+      };
     });
+
+    return {
+      user: currentUser,
+      balance: Number(dashboard.account?.balance || userMe.account?.balance || 0),
+      currency: dashboard.account?.currency || 'BDT',
+      transactions,
+    };
   },
 };
+
+export const mockDashboardService = dashboardService;

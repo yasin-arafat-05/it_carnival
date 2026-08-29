@@ -1,28 +1,22 @@
 from jose import JWTError
-from app.core.config import CONFIG
+from fastapi import HTTPException, Depends, status
+from app.core.dependencies import verify_token, oauth2_scheme
 from app.database.session import asyncSession
-from app.core.security import verify_token
-from fastapi import HTTPException,Depends,status
-from app.database.schemas.user import TokenResponse
-from fastapi.security import OAuth2PasswordBearer
-
-#oauth2 scheme:
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+from app.database.models.user import User
 
 
-#get the current user: when a user authorized:
-async def get_current_user(token: str = Depends(oauth2_scheme)):
-    print("token: in get current user: "+ token)
+async def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
+    """
+    FastAPI dependency to validate JWT bearer token and return authenticated User ORM instance.
+    """
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials.Please log in again.",
+        detail="Could not validate credentials. Please log in again.",
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
         async with asyncSession() as db:
-            user = await verify_token(token,db)
-        output = TokenResponse.model_validate(user)
-        print(output)
-        return user
-    except JWTError:
+            user = await verify_token(token, db)
+            return user
+    except Exception:
         raise credentials_exception

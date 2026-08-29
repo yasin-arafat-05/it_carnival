@@ -6,15 +6,13 @@ import { ErrorMessage } from '../components/ErrorMessage/ErrorMessage';
 import { FormField } from '../components/FormField/FormField';
 import { PasswordField } from '../components/PasswordField/PasswordField';
 import { AuthLayout } from '../layouts/AuthLayout';
-import { mockAuthService } from '../services/authService';
-import { MOCK_TAKEN_USERNAMES } from '../data/mockAuth';
+import { authService } from '../services/authService';
 import {
   getPasswordStrength,
   validateConfirmPassword,
   validateFullName,
   validateNewPassword,
   validateRegisterEmail,
-  validateUsername,
 } from '../utils/validation';
 import './RegisterPage.css';
 
@@ -22,6 +20,7 @@ interface FieldErrors {
   fullName?: string;
   email?: string;
   username?: string;
+  phoneNumber?: string;
   password?: string;
   confirmPassword?: string;
 }
@@ -30,6 +29,7 @@ interface Touched {
   fullName?: boolean;
   email?: boolean;
   username?: boolean;
+  phoneNumber?: boolean;
   password?: boolean;
   confirmPassword?: boolean;
 }
@@ -40,21 +40,13 @@ const STRENGTH_LABEL: Record<string, string> = {
   strong: 'Strong',
 };
 
-/**
- * Feature 43 — Registration.
- *
- * Mirrors LoginPage's structure: local form state, derived validation on
- * every render, and a single mock service call on submit. All "account
- * creation" is handled by `mockAuthService.register` — no backend, no
- * session/token storage. On success, this screen shows a clear mock
- * confirmation instead of silently redirecting.
- */
 export function RegisterPage() {
   const navigate = useNavigate();
 
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [touched, setTouched] = useState<Touched>({});
@@ -65,7 +57,8 @@ export function RegisterPage() {
   const errors: FieldErrors = {
     fullName: validateFullName(fullName),
     email: validateRegisterEmail(email),
-    username: validateUsername(username, MOCK_TAKEN_USERNAMES),
+    username: username.length < 3 ? 'Username must be at least 3 characters' : undefined,
+    phoneNumber: phoneNumber && phoneNumber.length < 10 ? 'Phone number must be at least 10 digits' : undefined,
     password: validateNewPassword(password),
     confirmPassword: validateConfirmPassword(password, confirmPassword),
   };
@@ -78,6 +71,7 @@ export function RegisterPage() {
       fullName: true,
       email: true,
       username: true,
+      phoneNumber: true,
       password: true,
       confirmPassword: true,
     });
@@ -88,8 +82,8 @@ export function RegisterPage() {
     }
 
     setIsSubmitting(true);
-    mockAuthService
-      .register({ fullName, email, username, password })
+    authService
+      .register({ fullName, email, username, password, phoneNumber } as any)
       .then((result) => {
         if (result.ok) {
           setSuccessBalance(result.startingBalance);
@@ -104,15 +98,11 @@ export function RegisterPage() {
 
   if (successBalance !== undefined) {
     return (
-      <AuthLayout title="Account created" description="Your account is ready to use.">
+      <AuthLayout title="Account created" description="Your digital wallet account is ready to use.">
         <div className="register-success">
           <p className="register-success__message">
             Your account is ready. Your starting balance is{' '}
             <strong>BDT {successBalance.toLocaleString('en-US')}</strong>.
-          </p>
-          <p className="register-success__note">
-            This is mock, display-only data for the current frontend — no real money or account
-            was created.
           </p>
           <Button fullWidth onClick={() => navigate('/dashboard')}>
             Continue to dashboard
@@ -124,8 +114,8 @@ export function RegisterPage() {
 
   return (
     <AuthLayout
-      title="Create your account"
-      description="Set up mock access to manage your money and transactions."
+      title="Create account"
+      description="Enter your details to register your digital wallet."
       footer={
         <span>
           Already have an account? <Link to="/login">Sign in</Link>
@@ -164,11 +154,24 @@ export function RegisterPage() {
           type="text"
           name="username"
           autoComplete="username"
-          hint="3–20 characters: letters, numbers, periods, and underscores."
+          hint="Letters, numbers, and underscores (e.g. yasin_arafat_05)"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           onBlur={() => setTouched((t) => ({ ...t, username: true }))}
           error={touched.username ? errors.username : undefined}
+          disabled={isSubmitting}
+        />
+
+        <FormField
+          label="Phone number"
+          type="tel"
+          name="phoneNumber"
+          autoComplete="tel"
+          hint="e.g. 01700000000"
+          value={phoneNumber}
+          onChange={(e) => setPhoneNumber(e.target.value)}
+          onBlur={() => setTouched((t) => ({ ...t, phoneNumber: true }))}
+          error={touched.phoneNumber ? errors.phoneNumber : undefined}
           disabled={isSubmitting}
         />
 
@@ -183,17 +186,14 @@ export function RegisterPage() {
             error={touched.password ? errors.password : undefined}
             disabled={isSubmitting}
           />
-          {strength && (
-            <div
-              className={`password-strength password-strength--${strength}`}
-              role="status"
-              aria-live="polite"
-            >
-              <span className="password-strength__track">
-                <span className="password-strength__fill" />
-              </span>
-              <span className="password-strength__label">
-                Password strength: {STRENGTH_LABEL[strength]}
+
+          {password.length > 0 && (
+            <div className="register-form__strength">
+              <div
+                className={`register-form__strength-bar register-form__strength-bar--${strength}`}
+              />
+              <span className="register-form__strength-text">
+                Strength: {STRENGTH_LABEL[strength || 'weak'] || 'Weak'}
               </span>
             </div>
           )}
@@ -210,13 +210,7 @@ export function RegisterPage() {
           disabled={isSubmitting}
         />
 
-        <Button
-          type="submit"
-          fullWidth
-          disabled={!isValid}
-          isLoading={isSubmitting}
-          loadingLabel="Creating account…"
-        >
+        <Button type="submit" fullWidth isLoading={isSubmitting}>
           Create account
         </Button>
       </form>

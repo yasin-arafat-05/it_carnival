@@ -1,0 +1,79 @@
+.hold-button-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+}
+
+.hold-to-confirm-btn {
+  position: relative;
+  width: 100%;
+  height: 48px;
+  background: var(--color-surface);
+  border: 2px solid var(--color-primary);
+  border-radius: var(--radius-md);
+  color: var(--color-primary-strong);
+  font-weight: 700;
+  font-size: var(--font-size-sm);
+  overflow: hidden;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+  transition: border-color var(--transition-fast), background var(--transition-fast);
+}
+
+.hold-to-confirm-btn:hover:not(.disabled) {
+  background: var(--color-primary-soft);
+}
+
+.hold-to-confirm-btn.holding {
+  border-color: var(--color-primary-strong);
+  box-shadow: 0 0 12px rgba(46, 117, 89, 0.3);
+}
+
+.hold-to-confirm-btn.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  border-color: var(--color-border);
+  color: var(--color-text-secondary);
+}
+
+.hold-to-confirm-btn__progress {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: linear-gradient(90deg, #2e7559, #255d47);
+  transition: width 50ms linear;
+  z-index: 1;
+}
+
+.hold-to-confirm-btn__text {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  color: inherit;
+}
+
+.hold-to-confirm-btn.holding .hold-to-confirm-btn__text {
+  color: #ffffff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+.hold-hint {
+  font-size: var(--font-size-xs);
+  color: var(--color-primary-strong);
+  font-weight: 600;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}

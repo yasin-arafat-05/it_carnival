@@ -10,6 +10,8 @@ const STATUS_LABEL: Record<TransactionStatus, string> = {
   pending: 'Pending',
   failed: 'Failed',
   cancelled: 'Cancelled',
+  reversed: 'Reversed',
+  reversal_in_progress: 'Reversal in progress',
 };
 
 /**

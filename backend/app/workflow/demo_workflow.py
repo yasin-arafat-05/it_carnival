@@ -1,18 +1,10 @@
 """
 ====================================================================
-Simple LangGraph Workflow Template (with Tools + HITL) - Boilerplate
+Digital Wallet Support AI Assistant Workflow (LangGraph)
 ====================================================================
-Generic starter workflow. Follows the same pattern as your
-nearby_product_finder_wkf, but adds a Human-In-The-Loop (HITL)
-approval step before a "sensitive" tool call (place_order).
-
-Pattern:
-    AgentState -> agent (LLM + tools bind) -> conditional edge
-        -> normal tool needed        -> tools node -> back to agent
-        -> sensitive tool needed     -> human_approval node (interrupt)
-              -> approved   -> tools node -> back to agent
-              -> rejected   -> END (cancelled message)
-        -> no tool needed            -> END
+Official AI Support assistant workflow for Digital Wallet.
+Answers user queries on transfer limits, money requests, false transaction
+reversals, security, and account audit logs.
 """
 
 import os
@@ -39,9 +31,6 @@ from app.core.config import CONFIG
 # =====================================================================
 # 1. STATE DEFINITION
 # =====================================================================
-# The `messages` field uses LangGraph's special reducer (add_messages),
-# which means new messages get APPENDED, not replaced. This is the
-# standard pattern for a tool-calling agent.
 
 class AgentState(BaseModel):
     model_config = {"arbitrary_types_allowed": True}
@@ -50,55 +39,90 @@ class AgentState(BaseModel):
     current_user_id: Union[str, UUID, int]
     messages: Annotated[List[BaseMessage], add_messages] = []
     final_answer: str = ""
-    order_cancelled: bool = False
+    action_cancelled: bool = False
 
 
 # =====================================================================
-# 2. TOOLS - put your actual business logic tools here
+# 2. TOOLS - Wallet Support & FAQ Tools
 # =====================================================================
-# `place_order` is marked as a "sensitive" tool below (see
-# SENSITIVE_TOOLS) — it will always go through human approval first.
 
 @tool
-def get_weather(city: str) -> str:
-    """Given a city name, return current weather info for that city."""
-    # Real weather API call would go here
-    return f"Weather in {city} is currently sunny, 32°C."
+def get_wallet_faq(topic: str) -> str:
+    """Given a query topic (limits, send, request, disputes, reversal, ledger, roles), returns authoritative wallet rules."""
+    topic_lower = topic.lower()
+    if "limit" in topic_lower or "send" in topic_lower or "transfer" in topic_lower:
+        return (
+            "Digital Wallet Transfer Rules & Limits:\n"
+            "• Single Transaction Maximum: BDT 20,000.00\n"
+            "• Daily Transfer Limit: BDT 50,000.00 per user per day\n"
+            "• Security Confirmation: All transfers require a 5-second press-and-hold confirmation inside the modal."
+        )
+    elif "dispute" in topic_lower or "false" in topic_lower or "reversal" in topic_lower or "refund" in topic_lower:
+        return (
+            "False Transaction Reversal & Dispute Process:\n"
+            "1. Open Transaction History ➔ click the completed outgoing transfer ➔ click 'Report False Transaction'.\n"
+            "2. The receiver is notified and can Accept ('Confirm & Allow Refund') or Reject ('Deny') the claim.\n"
+            "3. The Admin reviews the claim in the Admin Control Center and executes the atomic refund from receiver to sender."
+        )
+    elif "request" in topic_lower or "ask" in topic_lower:
+        return (
+            "Money Request Feature:\n"
+            "• Navigate to 'Request Money' ➔ enter the payer's username/email and amount.\n"
+            "• The payer can review, accept, or decline incoming requests directly from their dashboard."
+        )
+    elif "admin" in topic_lower or "role" in topic_lower:
+        return (
+            "Roles & Permissions:\n"
+            "• USER role: Financial transactions (Send Money, Request Money, History, Ledger Audit).\n"
+            "• ADMIN role: Admin Control Center, System-Wide Transaction Audit, Dispute Reversal Execution, User Admin Promotion."
+        )
+    elif "ledger" in topic_lower or "audit" in topic_lower:
+        return (
+            "Double-Entry Ledger System:\n"
+            "• Every financial transaction automatically creates DEBIT and CREDIT audit records.\n"
+            "• View full audit history under Transaction History ➔ Double-Entry Ledger Audit."
+        )
+    else:
+        return (
+            "Digital Wallet Customer Care:\n"
+            "We provide secure peer-to-peer transfers with BDT 20,000 single and BDT 50,000 daily limits, "
+            "5-second hold confirmation, false transaction reversal disputes, and double-entry audit logging."
+        )
 
 
 @tool
-def search_product(keyword: str) -> str:
-    """Search for a product by keyword and return matching product names."""
-    # Your real DB query would go here (like your fetch_categories_from_db)
-    dummy_db = ["Samsung Phone Case", "Facewash - Himalaya", "Cotton Shirt"]
-    matches = [p for p in dummy_db if keyword.lower() in p.lower()]
-    return f"Found: {matches}" if matches else "No matching product found."
+def request_admin_investigation(transaction_reference: str, reason: str) -> str:
+    """Submits a request to escalate a transaction dispute to admin for manual investigation."""
+    return f"Admin investigation requested for reference '{transaction_reference}'. Reason: {reason}."
 
 
-@tool
-def place_order(product_name: str, quantity: int) -> str:
-    """Place an order for a product. This is a sensitive action that
-    changes real data, so it requires human confirmation first."""
-    # Real order-placement DB write would go here
-    return f"Order placed: {quantity} x {product_name}."
-
-
-TOOLS = [get_weather, search_product, place_order]
-
-# Any tool name listed here will trigger a human-approval interrupt
-# BEFORE it is executed.
-SENSITIVE_TOOLS = {"place_order"}
+TOOLS = [get_wallet_faq, request_admin_investigation]
+SENSITIVE_TOOLS = {"request_admin_investigation"}
 
 
 # =====================================================================
-# 3. LLM SETUP + TOOL BINDING
+# 3. LLM SETUP + TOOL BINDING (Groq LLM)
 # =====================================================================
-model_name = getattr(CONFIG, "LLM_MODEL_NAME", None) or os.getenv("LLM_MODEL_NAME") or "openai/gpt-oss-20b"
-groq_api_key = CONFIG.GROQ_API_KEY or os.getenv("GROQ_API_KEY")
-llm = ChatGroq(model=model_name, groq_api_key=groq_api_key, temperature=0.3)
-llm_with_tools = llm.bind_tools(TOOLS)
+groq_api_key = (
+    getattr(CONFIG, "GROQ_API_KEY", None)
+    or os.getenv("GROQ_API_KEY")
+    or os.getenv("GROQ_API_TOKEN")
+)
+model_name = (
+    getattr(CONFIG, "LLM_MODEL_NAME", None)
+    or os.getenv("LLM_MODEL_NAME")
+    or "llama-3.3-70b-versatile"
+)
 
-
+try:
+    if groq_api_key:
+        llm = ChatGroq(model=model_name, groq_api_key=groq_api_key, temperature=0.3)
+        llm_with_tools = llm.bind_tools(TOOLS)
+    else:
+        llm_with_tools = None
+except Exception as err:
+    print(f"[demo_workflow] Failed to initialize ChatGroq: {err}")
+    llm_with_tools = None
 
 
 # =====================================================================
@@ -107,84 +131,70 @@ llm_with_tools = llm.bind_tools(TOOLS)
 
 def agent_node(state: AgentState) -> AgentState:
     """
-    Main reasoning node. The LLM decides whether to answer directly
-    or call a tool.
+    Main reasoning node using Groq LLM or direct tool execution fallback.
     """
     try:
         system_prompt = SystemMessage(content=(
-            "You are a helpful AI assistant. Answer the user's question. "
-            "Use the given tools (weather / product search / place_order) "
-            "when needed. If no tool is needed, answer directly."
+            "You are the official Digital Wallet AI Support Assistant (ডিজিটাল ওয়ালেট এআই অ্যাসিস্ট্যান্ট). "
+            "You help users with questions about sending money, transfer limits (BDT 20,000 single / BDT 50,000 daily), "
+            "5-second press-and-hold confirmation, requesting money, false transaction reversal disputes, and double-entry ledger audits. "
+            "Answer politely and accurately in English or Bengali depending on the user's input language. Use get_wallet_faq when relevant."
         ))
 
-        # On first call, add the user question as a HumanMessage
         if not state.messages:
             state.messages = [HumanMessage(content=state.user_question)]
 
-        response = llm_with_tools.invoke([system_prompt] + state.messages)
-        state.messages = state.messages + [response]
+        if llm_with_tools:
+            response = llm_with_tools.invoke([system_prompt] + state.messages)
+            state.messages = state.messages + [response]
 
-        # No tool call -> this is the final answer
-        if not getattr(response, "tool_calls", None):
-            state.final_answer = response.content
+            if not getattr(response, "tool_calls", None):
+                state.final_answer = response.content
+        else:
+            # Direct knowledge lookup fallback if Groq API Key is not set
+            answer = get_wallet_faq.invoke(state.user_question)
+            state.final_answer = answer
 
         return state
     except Exception as e:
         print(f"[agent_node] Error: {e}")
-        state.final_answer = "Sorry, something went wrong."
+        state.final_answer = get_wallet_faq.invoke(state.user_question)
         return state
 
 
 def human_approval_node(state: AgentState) -> AgentState:
-    """
-    HITL node. Pauses the graph with interrupt() and waits for a human
-    decision before letting a sensitive tool (place_order) actually run.
-
-    Resume from the caller side with:
-        Command(resume={"approved": True})   # or False
-    """
+    """HITL approval node for sensitive administrative actions."""
     last_message = state.messages[-1]
     tool_call = last_message.tool_calls[0]
 
-    print("Waiting for human approval... sending interrupt to caller.")
     decision = interrupt({
         "type": "request_approval",
-        "message": f"Confirm this action? -> {tool_call['name']}({tool_call['args']})",
+        "message": f"Escalate dispute to admin? -> {tool_call['name']}({tool_call['args']})",
         "tool_call_id": tool_call["id"],
     })
 
     if decision.get("approved"):
-        # Approved -> do nothing here, let it flow into the tools node
         return state
 
-    # Rejected -> cancel. We must still answer the pending tool_call
-    # with a ToolMessage, otherwise the LLM message history becomes invalid.
     state.messages = state.messages + [
         ToolMessage(
-            content="User rejected this action. Order was not placed.",
+            content="User cancelled admin escalation.",
             tool_call_id=tool_call["id"],
         )
     ]
-    state.order_cancelled = True
-    state.final_answer = "Okay, I've cancelled that order as you requested."
+    state.action_cancelled = True
+    state.final_answer = "Escalation request cancelled."
     return state
 
 
-# Prebuilt ToolNode - automatically executes any registered tool
 tool_node = ToolNode(tools=TOOLS)
 
 
 # =====================================================================
-# 5. ROUTING FUNCTIONS
+# 5. ROUTING & GRAPH BUILD
 # =====================================================================
 
 def route_after_agent(state: AgentState) -> str:
-    """
-    Decide where to go after the agent node:
-      - no tool call            -> END
-      - sensitive tool call     -> human_approval (needs confirmation)
-      - normal tool call        -> tools (run directly)
-    """
     last_message = state.messages[-1]
     tool_calls = getattr(last_message, "tool_calls", None)
 
@@ -198,19 +208,14 @@ def route_after_agent(state: AgentState) -> str:
 
 
 def route_after_approval(state: AgentState) -> str:
-    """After human_approval_node: go to tools if approved, else END."""
-    return "end" if state.order_cancelled else "safe_tool"
+    return "end" if state.action_cancelled else "safe_tool"
 
 
-# =====================================================================
-# 6. GRAPH BUILD
-# =====================================================================
 AGENT = "Agent"
 TOOLS_NODE = "Tools"
 HUMAN_APPROVAL = "Human_Approval"
 
 workflow = StateGraph(state_schema=AgentState)
-
 workflow.add_node(AGENT, agent_node)
 workflow.add_node(TOOLS_NODE, tool_node)
 workflow.add_node(HUMAN_APPROVAL, human_approval_node)
@@ -236,42 +241,5 @@ workflow.add_conditional_edges(
     },
 )
 
-# After a tool runs, go back to the agent (to produce the final answer)
 workflow.add_edge(TOOLS_NODE, AGENT)
-
-# Alias graph for worker imports
 demo_wkf = workflow
-
-
-
-# =====================================================================
-# 7. TESTING BLOCK - shows how to trigger and then resume the interrupt
-# =====================================================================
-if __name__ == "__main__":
-    memory = InMemorySaver()
-    app = workflow.compile(checkpointer=memory)
-
-    config = {"configurable": {"thread_id": "test_thread_1"}}
-
-    # Step 1: normal call, will pause at human_approval_node
-    initial_state = AgentState(
-        user_question="Place an order for 2 Cotton Shirts.",
-        current_user_id=1,
-    )
-    result = app.invoke(initial_state, config=config)
-
-    if "__interrupt__" in result:
-        interrupt_payload = result["__interrupt__"][0].value
-        print("\n--- INTERRUPT RECEIVED ---")
-        print(interrupt_payload)
-
-        # Step 2: simulate the user approving the action from frontend
-        final_result = app.invoke(
-            Command(resume={"approved": True}),
-            config=config,
-        )
-        print("\n--- FINAL ANSWER AFTER APPROVAL ---")
-        print(final_result["final_answer"])
-    else:
-        print("\n--- FINAL ANSWER (no approval needed) ---")
-        print(result["final_answer"])

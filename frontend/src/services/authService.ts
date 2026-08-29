@@ -1,9 +1,4 @@
-import {
-  MOCK_STARTING_BALANCE,
-  MOCK_TAKEN_USERNAMES,
-  MOCK_USER,
-  MOCK_VALID_CREDENTIALS,
-} from '../data/mockAuth';
+import { apiFetch, setAuthToken, removeAuthToken } from '../config/api';
 import type {
   AuthUser,
   LoginCredentials,
@@ -13,75 +8,82 @@ import type {
 } from '../types/auth';
 
 /**
- * Mock authentication service.
- *
- * This is the ONLY module the UI talks to for logging in. It currently
- * simulates network latency and checks against hardcoded mock
- * credentials. Later, `login()` can be reimplemented to call the real
- * backend (e.g. POST /token) and this file's exported shape
- * (`mockAuthService.login`) can simply become `authService.login` with
- * an identical signature — no page/component changes required.
+ * Authentication Service connected to FastAPI Backend API endpoints:
+ * - POST /auth/login
+ * - POST /auth/signup
  */
 
-const MOCK_LOGIN_DELAY_MS = 900;
-const MOCK_REGISTER_DELAY_MS = 900;
+export const authService = {
+  async login(credentials: LoginCredentials): Promise<LoginResult> {
+    try {
+      const data = await apiFetch<any>('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({
+          identifier: credentials.identifier,
+          password: credentials.password,
+        }),
+      });
 
-let mockRegisteredId = 2000;
-
-function normalize(value: string): string {
-  return value.trim().toLowerCase();
-}
-
-export const mockAuthService = {
-  login(credentials: LoginCredentials): Promise<LoginResult> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const identifierMatches =
-          normalize(credentials.identifier) === normalize(MOCK_VALID_CREDENTIALS.identifier) ||
-          normalize(credentials.identifier) === normalize(MOCK_USER.username);
-        const passwordMatches = credentials.password === MOCK_VALID_CREDENTIALS.password;
-
-        if (identifierMatches && passwordMatches) {
-          resolve({ ok: true, user: MOCK_USER });
-          return;
-        }
-
-        resolve({
-          ok: false,
-          message: "The email or username and password don't match.",
-        });
-      }, MOCK_LOGIN_DELAY_MS);
-    });
+      if (data.access_token) {
+        setAuthToken(data.access_token);
+        const user = data.user;
+        const authUser: AuthUser = {
+          id: user.id,
+          name: user.full_name,
+          username: user.username,
+          email: user.email,
+          phone: user.phone_number,
+          accountStatus: (user.account_status || 'ACTIVE').toLowerCase() as any,
+          createdAt: user.created_at,
+        };
+        return { ok: true, user: authUser };
+      }
+      return { ok: false, message: 'Invalid response received from authentication server.' };
+    } catch (err: any) {
+      return { ok: false, message: err.message || 'Login failed. Please check your credentials.' };
+    }
   },
 
-  /**
-   * Mock registration. Only rejects hardcoded taken usernames (see
-   * `MOCK_TAKEN_USERNAMES`) — everything else "succeeds" and returns a
-   * freshly minted mock user with the flat mock starting balance. Never
-   * touches a real backend, database, or session.
-   */
-  register(credentials: RegisterCredentials): Promise<RegisterResult> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const usernameTaken = MOCK_TAKEN_USERNAMES.some(
-          (taken) => normalize(taken) === normalize(credentials.username),
-        );
+  async register(credentials: RegisterCredentials): Promise<RegisterResult> {
+    try {
+      const phone = (credentials as any).phoneNumber || `017${Math.floor(10000000 + Math.random() * 90000000)}`;
+      const payload = {
+        full_name: credentials.fullName,
+        username: credentials.username,
+        phone_number: phone,
+        email: credentials.email,
+        password: credentials.password,
+      };
 
-        if (usernameTaken) {
-          resolve({ ok: false, message: 'That username is already taken.' });
-          return;
-        }
+      const data = await apiFetch<any>('/auth/signup', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
 
-        mockRegisteredId += 1;
-        const user: AuthUser = {
-          id: `user_${mockRegisteredId}`,
-          name: credentials.fullName.trim(),
-          username: credentials.username.trim(),
-          email: credentials.email.trim(),
+      // Automatically log in after registration
+      const loginRes = await this.login({
+        identifier: credentials.username,
+        password: credentials.password,
+      });
+
+      if (loginRes.ok) {
+        const startingBalance = data.account?.balance ? Number(data.account.balance) : 100000;
+        return {
+          ok: true,
+          user: loginRes.user,
+          startingBalance,
         };
+      }
 
-        resolve({ ok: true, user, startingBalance: MOCK_STARTING_BALANCE });
-      }, MOCK_REGISTER_DELAY_MS);
-    });
+      return { ok: false, message: 'Account registered successfully, but automatic login failed.' };
+    } catch (err: any) {
+      return { ok: false, message: err.message || 'Registration failed.' };
+    }
+  },
+
+  logout(): void {
+    removeAuthToken();
   },
 };
+
+export const mockAuthService = authService;

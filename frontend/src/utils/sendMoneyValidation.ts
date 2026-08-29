@@ -22,13 +22,14 @@ export function parseAmount(rawValue: string): number | undefined {
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
-/**
- * Validates the amount field.
- * - Required, numeric (up to 2 decimal places).
- * - Must be greater than zero.
- * - Must not exceed the sender's mock available balance.
- */
-export function validateAmount(rawValue: string, availableBalance: number): string | undefined {
+export const SINGLE_TX_LIMIT = 20000;
+export const DAILY_SENDING_LIMIT = 50000;
+
+export function validateAmount(
+  rawValue: string,
+  availableBalance: number,
+  remainingDailyLimit?: number,
+): string | undefined {
   const trimmed = rawValue.trim();
   if (!trimmed) {
     return 'Enter an amount.';
@@ -40,8 +41,14 @@ export function validateAmount(rawValue: string, availableBalance: number): stri
   if (amount <= 0) {
     return 'Amount must be greater than zero.';
   }
+  if (amount > SINGLE_TX_LIMIT) {
+    return 'Single transaction amount cannot exceed BDT 20,000.';
+  }
+  if (remainingDailyLimit !== undefined && amount > remainingDailyLimit) {
+    return `Transaction exceeds your remaining daily limit of BDT ${remainingDailyLimit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}.`;
+  }
   if (amount > availableBalance) {
-    return "Amount exceeds your available balance.";
+    return 'Amount exceeds your available balance.';
   }
   return undefined;
 }

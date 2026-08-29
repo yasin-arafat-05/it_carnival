@@ -7,6 +7,7 @@ import { ErrorMessage } from '../components/ErrorMessage/ErrorMessage';
 import { FormField } from '../components/FormField/FormField';
 import { LoadingIndicator } from '../components/LoadingIndicator/LoadingIndicator';
 import { Modal } from '../components/Modal/Modal';
+import { HoldToConfirmButton } from '../components/HoldToConfirmButton/HoldToConfirmButton';
 import { TransactionStatusBadge } from '../components/StatusBadge/TransactionStatusBadge';
 import { mockDashboardService } from '../services/dashboardService';
 import { mockSendMoneyService } from '../services/sendMoneyService';
@@ -55,16 +56,13 @@ export function SendMoneyPage() {
   const [currentUserId, setCurrentUserId] = useState<string | undefined>(undefined);
   const [availableBalance, setAvailableBalance] = useState(0);
   const [currency, setCurrency] = useState('BDT');
+  const [todaySentTotal, setTodaySentTotal] = useState(0);
 
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
   const [touched, setTouched] = useState<{ amount?: boolean; note?: boolean }>({});
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
-  // Guards against a double "Confirm" tap (rapid double-click, slow
-  // network) triggering two in-flight submissions from the UI side. This
-  // is a UI-only safeguard — see the idempotency note in
-  // `mockSendMoneyService` for what the real backend must additionally do.
   const isSubmittingRef = useRef(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -89,6 +87,15 @@ export function SendMoneyPage() {
         setCurrentUserId(dashboard.user.id);
         setAvailableBalance(dashboard.balance);
         setCurrency(dashboard.currency);
+
+        const todayStr = new Date().toISOString().split('T')[0];
+        const sentToday = (dashboard.transactions || []).reduce((sum: number, tx: any) => {
+          if (tx.direction === 'sent' && tx.occurredAt && tx.occurredAt.startsWith(todayStr)) {
+            return sum + Number(tx.amount);
+          }
+          return sum;
+        }, 0);
+        setTodaySentTotal(sentToday);
         setScreen({ step: 'form' });
       })
       .catch(() => {
@@ -101,8 +108,10 @@ export function SendMoneyPage() {
     };
   }, [userId]);
 
+  const remainingDailyLimit = Math.max(0, 50000 - todaySentTotal);
+
   const errors: FieldErrors = {
-    amount: validateAmount(amount, availableBalance),
+    amount: validateAmount(amount, availableBalance, remainingDailyLimit),
     note: validateNote(note),
   };
   const selfTransferError =
@@ -226,7 +235,7 @@ export function SendMoneyPage() {
                   onChange={(e) => setAmount(e.target.value)}
                   onBlur={() => setTouched((t) => ({ ...t, amount: true }))}
                   error={touched.amount ? errors.amount : undefined}
-                  hint={`Available balance: ${formatCurrency(availableBalance, currency)}`}
+                  hint={`Available balance: ${formatCurrency(availableBalance, currency)} • Daily limit remaining: ${formatCurrency(remainingDailyLimit, currency)} / ${formatCurrency(50000, currency)}`}
                 />
 
                 <FormField
@@ -316,23 +325,21 @@ export function SendMoneyPage() {
             if (!isSubmitting) setIsConfirmOpen(false);
           }}
           footer={
-            <>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', width: '100%' }}>
+              <HoldToConfirmButton
+                durationMs={5000}
+                onConfirm={handleConfirm}
+                isSubmitting={isSubmitting}
+              />
               <Button
                 variant="secondary"
                 onClick={() => setIsConfirmOpen(false)}
                 disabled={isSubmitting}
+                fullWidth
               >
                 Cancel
               </Button>
-              <Button
-                onClick={handleConfirm}
-                disabled={isSubmitting}
-                isLoading={isSubmitting}
-                loadingLabel="Sending…"
-              >
-                Confirm
-              </Button>
-            </>
+            </div>
           }
         >
           <dl className="confirm-summary">

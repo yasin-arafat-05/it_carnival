@@ -1,10 +1,11 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '../components/Button/Button';
 import { Logo } from '../components/Brand/Logo';
 import { StatusBadge } from '../components/StatusBadge/StatusBadge';
 import { Toggle } from '../components/Toggle/Toggle';
-import { MOCK_USER } from '../data/mockAuth';
+import { apiFetch } from '../config/api';
+import { authService } from '../services/authService';
 import './ProfilePage.css';
 
 function formatCreatedDate(value?: string): string {
@@ -14,26 +15,50 @@ function formatCreatedDate(value?: string): string {
   return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 }
 
-/**
- * Feature 4/54 — Profile & Settings.
- *
- * Reads from the same `MOCK_USER` used by the mock auth service — no
- * second user-data system. Everything here is read-only display plus
- * local, non-persistent UI toggles; "Log out" only navigates to /login
- * as a mock action, it does not touch any real session state.
- */
 export function ProfilePage() {
   const navigate = useNavigate();
-  const user = MOCK_USER;
-
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [darkModeEnabled, setDarkModeEnabled] = useState(false);
 
-  const status = user.accountStatus ?? 'active';
+  useEffect(() => {
+    apiFetch<any>('/users/me')
+      .then((data) => {
+        setUser({
+          name: data.full_name,
+          username: data.username,
+          email: data.email,
+          phone: data.phone_number,
+          role: data.role || 'USER',
+          accountStatus: (data.account_status || 'ACTIVE').toLowerCase(),
+          createdAt: data.created_at,
+          account: data.account,
+        });
+      })
+      .catch(() => {
+        authService.logout();
+        navigate('/login', { replace: true });
+      })
+      .finally(() => setLoading(false));
+  }, [navigate]);
 
   function handleLogout() {
+    authService.logout();
     navigate('/login', { replace: true });
   }
+
+  if (loading) {
+    return (
+      <main className="profile-page">
+        <div className="profile-page__container">
+          <p>Loading profile...</p>
+        </div>
+      </main>
+    );
+  }
+
+  const status = user?.accountStatus ?? 'active';
 
   return (
     <main className="profile-page">
@@ -54,25 +79,43 @@ export function ProfilePage() {
           <dl className="profile-info-list">
             <div className="profile-info-list__row">
               <dt>Full name</dt>
-              <dd>{user.name}</dd>
+              <dd>{user?.name}</dd>
             </div>
             <div className="profile-info-list__row">
               <dt>Username</dt>
-              <dd>{user.username}</dd>
+              <dd>{user?.username}</dd>
+            </div>
+            <div className="profile-info-list__row">
+              <dt>Role</dt>
+              <dd style={{ fontWeight: 'bold', color: 'var(--color-primary)' }}>{user?.role}</dd>
             </div>
             <div className="profile-info-list__row">
               <dt>Email</dt>
-              <dd>{user.email}</dd>
+              <dd>{user?.email}</dd>
             </div>
             <div className="profile-info-list__row">
               <dt>Phone</dt>
-              <dd>{user.phone ?? '—'}</dd>
+              <dd>{user?.phone ?? '—'}</dd>
+            </div>
+            <div className="profile-info-list__row">
+              <dt>Account Number</dt>
+              <dd>{user?.account?.account_number ?? '—'}</dd>
             </div>
             <div className="profile-info-list__row">
               <dt>Account created</dt>
-              <dd>{formatCreatedDate(user.createdAt)}</dd>
+              <dd>{formatCreatedDate(user?.createdAt)}</dd>
             </div>
           </dl>
+
+          {user?.role === 'ADMIN' && (
+            <Link
+              to="/admin/dashboard"
+              className="button button--primary"
+              style={{ width: '100%', textAlign: 'center', marginTop: '1rem' }}
+            >
+              Open Admin Control Center
+            </Link>
+          )}
         </section>
 
         <section className="profile-section" aria-labelledby="settings-heading">

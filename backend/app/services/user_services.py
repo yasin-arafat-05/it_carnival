@@ -102,20 +102,42 @@ async def search_users(
     Returns:
         List[UserSearchResponse]: List of matching user items.
     """
-    if not query or len(query.strip()) == 0:
-        return []
+    stripped = query.strip() if query else ""
+    if stripped.startswith("@"):
+        stripped = stripped[1:].strip()
 
-    search_pattern = f"%{query.strip()}%"
+    if not stripped:
+        stmt = (
+            select(User)
+            .where(
+                User.id != current_user.id,
+                User.role == "USER",
+            )
+            .limit(limit)
+        )
+        result = await db.execute(stmt)
+        users = result.scalars().all()
+        return [UserSearchResponse.model_validate(u) for u in users]
+
+    conditions = [
+        User.username.ilike(f"%{stripped}%"),
+        User.email.ilike(f"%{stripped}%"),
+        User.phone_number.ilike(f"%{stripped}%"),
+        User.full_name.ilike(f"%{stripped}%"),
+    ]
+
+    try:
+        query_uuid = uuid.UUID(stripped)
+        conditions.append(User.id == query_uuid)
+    except ValueError:
+        pass
+
     stmt = (
         select(User)
         .where(
             User.id != current_user.id,
-            or_(
-                User.username.ilike(search_pattern),
-                User.email.ilike(search_pattern),
-                User.phone_number.ilike(search_pattern),
-                User.full_name.ilike(search_pattern),
-            ),
+            User.role == "USER",
+            or_(*conditions),
         )
         .limit(limit)
     )

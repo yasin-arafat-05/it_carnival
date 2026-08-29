@@ -138,6 +138,7 @@ class UserResponse(BaseModel):
     username: str
     phone_number: str
     email: EmailStr
+    role: str = "USER"
     account_status: str
     created_at: datetime
     account: Optional[AccountResponse] = None

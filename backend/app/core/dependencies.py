@@ -114,6 +114,29 @@ async def get_current_user(
         return await verify_token(token, db)
 
 
+async def require_admin_user(
+    current_user: User = Depends(get_current_user),
+) -> User:
+    """
+    FastAPI Dependency enforcing ADMIN role authorization for administrative endpoints.
+
+    Args:
+        current_user (User): Current authenticated user.
+
+    Returns:
+        User: Admin user instance.
+
+    Raises:
+        HTTPException: 403 Forbidden if current user is not an administrator.
+    """
+    if current_user.role != "ADMIN":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access restricted: Administrative privileges required.",
+        )
+    return current_user
+
+
 async def authenticate_user(
     identifier: str, password: str, db: AsyncSession
 ) -> Optional[User]:

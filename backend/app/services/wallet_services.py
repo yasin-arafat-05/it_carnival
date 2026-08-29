@@ -2,7 +2,7 @@ import uuid
 from decimal import Decimal
 from datetime import datetime
 from typing import List, Optional
-from sqlalchemy import select, or_, and_, desc, text
+from sqlalchemy import select, or_, and_, desc, text, func
 from sqlalchemy.orm import joinedload
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -122,6 +122,12 @@ async def execute_transfer(
     Raises:
         HTTPException: 400 Bad Request, 404 Not Found, or 403 Forbidden.
     """
+    if sender_user.role == "ADMIN":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin users are restricted from executing financial transactions.",
+        )
+
     # 1. Threading Lock Key Selection
     thread_lock_key = f"transfer_user_{sender_user.id}"
     if transfer_data.idempotency_key:
@@ -153,13 +159,19 @@ async def execute_transfer(
             pass
 
         # Resolve Receiver User
-        receiver_query = select(User).where(
-            or_(
-                User.username == transfer_data.receiver_identifier,
-                User.email == transfer_data.receiver_identifier,
-                User.phone_number == transfer_data.receiver_identifier,
-            )
-        )
+        rx_identifier = transfer_data.receiver_identifier.strip()
+        rx_conditions = [
+            User.username == rx_identifier,
+            User.email == rx_identifier,
+            User.phone_number == rx_identifier,
+        ]
+        try:
+            rx_uuid = uuid.UUID(rx_identifier)
+            rx_conditions.append(User.id == rx_uuid)
+        except ValueError:
+            pass
+
+        receiver_query = select(User).where(or_(*rx_conditions))
         receiver_res = await db.execute(receiver_query)
         receiver_user = receiver_res.scalar_one_or_none()
 
@@ -209,6 +221,33 @@ async def execute_transfer(
 
         # Check Balance against locked state
         transfer_amount = Decimal(str(transfer_data.amount))
+
+        # Single transaction limit check (Max BDT 20,000)
+        SINGLE_TX_MAX = Decimal("20000.00")
+        if transfer_amount > SINGLE_TX_MAX:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Single transaction amount cannot exceed BDT 20,000.00.",
+            )
+
+        # Daily transfer limit check (Max BDT 50,000 per user per day)
+        DAILY_LIMIT_MAX = Decimal("50000.00")
+        today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+        today_sent_stmt = select(func.coalesce(func.sum(Transaction.amount), 0)).where(
+            Transaction.sender_account_id == locked_sender.id,
+            Transaction.status == "COMPLETED",
+            Transaction.created_at >= today_start,
+        )
+        today_sent_res = await db.execute(today_sent_stmt)
+        today_sent_amount = today_sent_res.scalar() or Decimal("0.00")
+
+        if today_sent_amount + transfer_amount > DAILY_LIMIT_MAX:
+            remaining_limit = max(Decimal("0.00"), DAILY_LIMIT_MAX - today_sent_amount)
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Daily transfer limit of BDT 50,000.00 exceeded. Remaining limit for today: BDT {remaining_limit:,.2f}.",
+            )
+
         if locked_sender.available_balance < transfer_amount:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,

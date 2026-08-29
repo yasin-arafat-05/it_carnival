@@ -8,7 +8,13 @@ import type { AuthUser } from './auth';
 
 export type TransactionDirection = 'sent' | 'received';
 
-export type TransactionStatus = 'completed' | 'pending' | 'failed' | 'cancelled';
+export type TransactionStatus =
+  | 'completed'
+  | 'pending'
+  | 'failed'
+  | 'cancelled'
+  | 'reversed'
+  | 'reversal_in_progress';
 
 export interface Transaction {
   id: string;

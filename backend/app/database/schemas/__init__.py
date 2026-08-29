@@ -15,6 +15,13 @@ from app.database.schemas.money_request import (
 )
 from app.database.schemas.notification import NotificationResponse
 from app.database.schemas.token import Token
+from app.database.schemas.dispute import (
+    FalseTransactionRequest,
+    ComplaintRequest,
+    DisputeReceiverAction,
+    DisputeResolveAction,
+    DisputeResponse,
+)
 
 __all__ = [
     "UserCreate",
@@ -32,4 +39,9 @@ __all__ = [
     "MoneyRequestResponse",
     "NotificationResponse",
     "Token",
+    "FalseTransactionRequest",
+    "ComplaintRequest",
+    "DisputeReceiverAction",
+    "DisputeResolveAction",
+    "DisputeResponse",
 ]

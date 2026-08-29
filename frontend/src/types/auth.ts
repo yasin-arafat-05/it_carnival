@@ -19,6 +19,7 @@ export interface AuthUser {
   email: string;
   /** Optional profile fields — present on the mock demo user for Feature 4/54. */
   phone?: string;
+  role?: string;
   accountStatus?: AccountStatus;
   /** ISO date string. */
   createdAt?: string;

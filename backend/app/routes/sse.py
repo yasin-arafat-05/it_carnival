@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from app.database.schemas.chat import InputMessage
 from app.database.session import asyncSession
 from app.redis.redis_setup import redis_async
-from app.core.auth import get_current_user
+from app.core.dependencies import get_current_user
 from app.workers.llm_worker import process_llm_request_task, celery_app_llm
 
 logger = logging.getLogger(__name__)

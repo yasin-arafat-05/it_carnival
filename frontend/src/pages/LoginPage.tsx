@@ -6,7 +6,7 @@ import { ErrorMessage } from '../components/ErrorMessage/ErrorMessage';
 import { FormField } from '../components/FormField/FormField';
 import { PasswordField } from '../components/PasswordField/PasswordField';
 import { AuthLayout } from '../layouts/AuthLayout';
-import { mockAuthService } from '../services/authService';
+import { authService } from '../services/authService';
 import { validateLoginIdentifier, validateLoginPassword } from '../utils/validation';
 import './LoginPage.css';
 
@@ -15,13 +15,6 @@ interface FieldErrors {
   password?: string;
 }
 
-/**
- * Feature 42 — Login.
- *
- * All authentication is mocked via `mockAuthService`; this component only
- * knows about the service's `login()` shape (credentials in, LoginResult
- * out), so swapping in a real API client later requires no changes here.
- */
 export function LoginPage() {
   const navigate = useNavigate();
 
@@ -47,7 +40,7 @@ export function LoginPage() {
     }
 
     setIsSubmitting(true);
-    mockAuthService
+    authService
       .login({ identifier, password })
       .then((result) => {
         if (result.ok) {
@@ -75,7 +68,7 @@ export function LoginPage() {
         {formError && <ErrorMessage message={formError} />}
 
         <FormField
-          label="Email or username"
+          label="Email, Username or Phone"
           type="text"
           name="identifier"
           autoComplete="username"
