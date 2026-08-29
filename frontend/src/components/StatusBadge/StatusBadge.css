@@ -1,0 +1,19 @@
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-pill);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  line-height: 1.6;
+}
+
+.status-badge--active {
+  background: var(--color-success-soft);
+  color: var(--color-success);
+}
+
+.status-badge--suspended {
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+}

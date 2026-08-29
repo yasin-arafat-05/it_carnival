@@ -1,0 +1,70 @@
+.register-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.register-form__password-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.password-strength {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.password-strength__track {
+  flex: 1;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--color-border);
+  overflow: hidden;
+}
+
+.password-strength__fill {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-pill);
+  transition: width var(--transition-base), background-color var(--transition-base);
+}
+
+.password-strength--weak .password-strength__fill {
+  width: 33%;
+  background: var(--color-danger);
+}
+
+.password-strength--fair .password-strength__fill {
+  width: 66%;
+  background: #b8860b;
+}
+
+.password-strength--strong .password-strength__fill {
+  width: 100%;
+  background: var(--color-success);
+}
+
+.password-strength__label {
+  flex-shrink: 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.register-success {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  text-align: center;
+}
+
+.register-success__message {
+  font-size: var(--font-size-md);
+  color: var(--color-text);
+}
+
+.register-success__note {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
