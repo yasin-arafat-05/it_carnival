@@ -13,3 +13,10 @@ wheels/
 ./backend/.env
 ./backend/.env
 /backend/.env
+
+frontend/android
+frontend/ios
+frontend/web
+frontend/linux
+frontend/macos
+frontend/windows
