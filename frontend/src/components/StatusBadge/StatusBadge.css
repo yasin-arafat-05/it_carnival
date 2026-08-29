@@ -24,11 +24,16 @@
 }
 
 .status-badge--pending {
-  background: var(--color-border);
-  color: var(--color-text-secondary);
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
 }
 
 .status-badge--failed {
   background: var(--color-danger-soft);
   color: var(--color-danger);
+}
+
+.status-badge--cancelled {
+  background: var(--color-neutral-soft);
+  color: var(--color-neutral);
 }
